@@ -45,53 +45,67 @@ local function GetClothingState()
 end
 
 local function OpenMenu()
-    local pedHeading = GetEntityHeading(PlayerPedId()) + 180.0
-    local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
-    CamHandle = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', camCoords.x, camCoords.y, camCoords.z, 0.0, 0.0, pedHeading, CurrentFov, false, 0)
-    SetCamUseShallowDofMode(CamHandle, true)
-    SetCamNearDof(CamHandle, 0.2)
-    SetCamFarDof(CamHandle, 5.0)
-    SetCamDofStrength(CamHandle, 1.0)
-    SetCamActive(CamHandle, true)
-    RenderScriptCams(true, true, 500, true, true)
-    CamActive = true
+    if not IsPedInAnyVehicle(PlayerPedId(), true) then
+        local pedHeading = GetEntityHeading(PlayerPedId()) + 180.0
+        local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
+        CamHandle = CreateCamWithParams('DEFAULT_SCRIPTED_CAMERA', camCoords.x, camCoords.y, camCoords.z, 0.0, 0.0, pedHeading, CurrentFov, false, 0)
+        SetCamUseShallowDofMode(CamHandle, true)
+        SetCamNearDof(CamHandle, 0.2)
+        SetCamFarDof(CamHandle, 5.0)
+        SetCamDofStrength(CamHandle, 1.0)
+        SetCamActive(CamHandle, true)
+        RenderScriptCams(true, true, 500, true, true)
+        CamActive = true
+    end
     SetNuiFocus(true, true)
     SendNUIMessage({ type = 'OpenMenu', clothingStates = GetClothingState() })
     if Config.HideMinimap then DisplayRadar(false) end
 end
 
 RegisterNuiCallback('changeScale', function(data, cb)
-    CurrentFov = CurrentFov + data.scale
-    if CurrentFov > Config.MaxFov then CurrentFov = Config.MaxFov end
-    if CurrentFov < Config.MinFov then CurrentFov = Config.MinFov end
-    SetCamFov(CamHandle, CurrentFov)
+    if not IsPedInAnyVehicle(PlayerPedId(), true) then
+        CurrentFov = CurrentFov + data.scale
+        if CurrentFov > Config.MaxFov then CurrentFov = Config.MaxFov end
+        if CurrentFov < Config.MinFov then CurrentFov = Config.MinFov end
+        SetCamFov(CamHandle, CurrentFov)
+    else
+        Config.Notification('You cannot use this while in a vehicle.')
+    end
 end)
 
 RegisterNuiCallback('changeRotation', function(data, cb)
-    if data.side == 'right' then
-        local playerHeading = GetEntityHeading(PlayerPedId())
-        local playerRotation = playerHeading + 4.0
-        SetEntityHeading(PlayerPedId(), playerRotation % 360)
-    elseif data.side == 'left' then
-        local playerHeading = GetEntityHeading(PlayerPedId())
-        local playerRotation = playerHeading + -4.0
-        SetEntityHeading(PlayerPedId(), playerRotation % 360)
+    if not IsPedInAnyVehicle(PlayerPedId(), true) then
+        if data.side == 'right' then
+            local playerHeading = GetEntityHeading(PlayerPedId())
+            local playerRotation = playerHeading + 4.0
+            SetEntityHeading(PlayerPedId(), playerRotation % 360)
+        elseif data.side == 'left' then
+            local playerHeading = GetEntityHeading(PlayerPedId())
+            local playerRotation = playerHeading + -4.0
+            SetEntityHeading(PlayerPedId(), playerRotation % 360)
+        end
+    else
+        Config.Notification('You cannot use this while in a vehicle.')
     end
 end)
 
 RegisterNuiCallback('changeHeight', function(data, cb)
-    if data.direction == 'up' then
-        CurrentHeightAdd = CurrentHeightAdd + 0.01
-        if CurrentHeightAdd > Config.MaxHeight then CurrentHeightAdd = Config.MaxHeight end
-        local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
-        SetCamCoord(CamHandle, camCoords.x, camCoords.y, camCoords.z + CurrentHeightAdd)
-        PointCamAtEntity(CamHandle, PlayerPedId(), 0.0, 0.0, CurrentHeightAdd)
-    elseif data.direction == 'down' then
-        CurrentHeightAdd = CurrentHeightAdd - 0.01
-        if CurrentHeightAdd < 0 then CurrentHeightAdd = 0 end
-        local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
-        SetCamCoord(CamHandle, camCoords.x, camCoords.y, camCoords.z + CurrentHeightAdd)
-        PointCamAtEntity(CamHandle, PlayerPedId(), 0.0, 0.0, CurrentHeightAdd)
+    if not IsPedInAnyVehicle(PlayerPedId(), true) then
+        if data.direction == 'up' then
+            CurrentHeightAdd = CurrentHeightAdd + 0.01
+            if CurrentHeightAdd > Config.MaxHeight then CurrentHeightAdd = Config.MaxHeight end
+            local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
+            SetCamCoord(CamHandle, camCoords.x, camCoords.y, camCoords.z + CurrentHeightAdd)
+            PointCamAtEntity(CamHandle, PlayerPedId(), 0.0, 0.0, CurrentHeightAdd)
+        elseif data.direction == 'down' then
+            CurrentHeightAdd = CurrentHeightAdd - 0.01
+            if CurrentHeightAdd < 0 then CurrentHeightAdd = 0 end
+            local camCoords = GetOffsetFromEntityInWorldCoords(PlayerPedId(), 0.0, 2.0, 0.0)
+            SetCamCoord(CamHandle, camCoords.x, camCoords.y, camCoords.z + CurrentHeightAdd)
+            PointCamAtEntity(CamHandle, PlayerPedId(), 0.0, 0.0, CurrentHeightAdd)
+        end
+    else
+        Config.Notification('You cannot use this while in a vehicle.')
     end
 end)
 
@@ -128,7 +142,12 @@ RegisterNuiCallback('changeClothesState', function(data, cb)
         if ClothingTable[data.clothing].type == 'component' then
             LastIndexes[data.clothing] = GetPedDrawableVariation(PlayerPedId(), ClothingTable[data.clothing].id)
             LastTextureIndexes[data.clothing] = GetPedTextureVariation(PlayerPedId(), ClothingTable[data.clothing].id)
-            SetPedComponentVariation(PlayerPedId(), ClothingTable[data.clothing].id, Config.Clothing[data.clothing].default, 0)
+            local gender = GetEntityModel(PlayerPedId())
+            if gender == GetHashKey("mp_m_freemode_01") then 
+                SetPedComponentVariation(PlayerPedId(), ClothingTable[data.clothing].id, Config.Clothing[data.clothing].default.male, 0)
+            elseif gender == GetHashKey("mp_f_freemode_01") then 
+                SetPedComponentVariation(PlayerPedId(), ClothingTable[data.clothing].id, Config.Clothing[data.clothing].default.female, 0)
+            end      
         else
             LastIndexes[data.clothing] = GetPedPropIndex(PlayerPedId(), ClothingTable[data.clothing].id)
             LastTextureIndexes[data.clothing] = GetPedPropTextureIndex(PlayerPedId(), ClothingTable[data.clothing].id)
